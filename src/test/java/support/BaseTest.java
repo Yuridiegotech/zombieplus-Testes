@@ -20,6 +20,7 @@ import support.api.LeadsApi;
 import support.api.MoviesApi;
 import support.api.TvShowsApi;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -49,6 +50,17 @@ public class BaseTest {
 
   public Page getPage() {
     return page;
+  }
+
+  public void takeScreenshot(String name) {
+    try {
+      if (page != null && !page.isClosed()) {
+        byte[] screenshot = page.screenshot(new Page.ScreenshotOptions().setFullPage(true));
+        Allure.addAttachment(name, "image/png", new ByteArrayInputStream(screenshot), ".png");
+      }
+    } catch (Exception e) {
+      System.err.println("Erro ao capturar screenshot: " + e.getMessage());
+    }
   }
 
   @BeforeEach
@@ -86,7 +98,10 @@ public class BaseTest {
 
   @AfterEach
   void tearDown(TestInfo testInfo) {
-    // Salva o trace com o nome do teste
+    // 📸 Captura Screenshot de Evidência Final para cada teste
+    takeScreenshot("Evidência Final - " + testInfo.getDisplayName());
+
+    // 📦 Salva o trace do Playwright e anexa ao Allure
     String cleanTestName = testInfo.getDisplayName().replaceAll("[^a-zA-Z0-9.-]", "_");
     Path tracePath = Paths.get("build", "allure-results", "trace-" + this.getClass().getSimpleName() + "-" + cleanTestName + ".zip");
 

@@ -9,6 +9,8 @@ import com.microsoft.playwright.APIResponse;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.FormData;
 import com.microsoft.playwright.options.RequestOptions;
+import io.qameta.allure.Allure;
+import io.qameta.allure.Step;
 
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -18,17 +20,19 @@ public class MoviesApi {
 
   private final APIRequestContext request;
   private final String token;
+  private final String baseUrl;
 
   public MoviesApi(Playwright playwright) {
+    String envUrl = System.getenv("API_URL");
+    this.baseUrl = (envUrl != null && !envUrl.isEmpty()) ? envUrl : "http://localhost:3333";
     this.request = playwright.request().newContext(
-        new APIRequest.NewContextOptions().setBaseURL("http://localhost:3333")
+        new APIRequest.NewContextOptions().setBaseURL(baseUrl)
     );
-    // Gera o token uma única vez ao inicializar
     this.token = generateToken();
   }
 
+  @Step("API: Cadastrando filme '{movie}' via requisição POST /movies")
   public void createMovie(Map<String, Object> movie) {
-    // Extrai os dados do movie
     String title = (String) movie.get("title");
     String overview = (String) movie.get("overview");
     String company = (String) movie.get("company");
@@ -36,7 +40,7 @@ public class MoviesApi {
     String cover = (String) movie.get("cover");
     boolean featured = getBooleanValue(movie, "featured");
 
-    System.out.println("========== CRIANDO FILME VIA API ==========");
+    System.out.println("========== [API] CRIANDO FILME ==========");
     System.out.println("Title: " + title);
     System.out.println("Overview: " + overview);
     System.out.println("Company: " + company);
@@ -44,11 +48,8 @@ public class MoviesApi {
     System.out.println("Cover: " + cover);
     System.out.println("Featured: " + featured);
 
-    // 1. Busca o company_id
     String companyId = getCompanies(company);
 
-    // 2. Cria o filme via API
-    System.out.println("\n--- Enviando requisição POST /movies ---");
     FormData formData = FormData.create()
         .set("title", title)
         .set("overview", overview)
@@ -57,8 +58,8 @@ public class MoviesApi {
         .set("featured", String.valueOf(featured));
 
     if (cover != null && !cover.isEmpty()) {
-      String coverPath = "src/test/java/support/fixtures/" + cover;
-      System.out.println("Cover path: " + coverPath);
+      String cleanCover = cover.startsWith("/") ? cover.substring(1) : cover;
+      String coverPath = "src/test/java/support/fixtures/" + cleanCover;
       formData.set("cover", Paths.get(coverPath));
     }
 
@@ -68,12 +69,16 @@ public class MoviesApi {
             .setMultipart(formData)
     );
 
-    System.out.println("\n--- Resposta da API ---");
-    System.out.println("Status Code: " + response.status());
-    System.out.println("Status Text: " + response.statusText());
-    System.out.println("Response Body: " + response.text());
-    System.out.println("OK: " + response.ok());
-    System.out.println("==========================================\n");
+    System.out.println("Status: " + response.status() + " " + response.statusText());
+    System.out.println("Response: " + response.text());
+    System.out.println("=========================================\n");
+
+    Allure.addAttachment("API Request Movie Data", "application/json", new Gson().toJson(movie));
+    Allure.addAttachment("API Response POST /movies (" + response.status() + ")", "application/json", response.text());
+
+    if (!response.ok()) {
+      throw new RuntimeException("Falha ao criar filme via API: " + response.status() + " - " + response.text());
+    }
   }
 
   private String getIntegerValue(Map<String, Object> map, String key) {
@@ -92,14 +97,10 @@ public class MoviesApi {
     return false;
   }
 
+  @Step("API: Gerando token de autenticação (/sessions)")
   private String generateToken() {
     String email = "admin@zombieplus.com";
     String password = "pwd123";
-
-    System.out.println("\n========== GERANDO TOKEN (INICIALIZAÇÃO) ==========");
-    System.out.println("POST /sessions");
-    System.out.println(
-        "Request Body: {\"email\":\"" + email + "\", \"password\":\"" + password + "\"}");
 
     Map<String, String> data = new HashMap<>();
     data.put("email", email);
@@ -112,45 +113,35 @@ public class MoviesApi {
             .setData(gson.toJson(data))
     );
 
-    System.out.println("Response Status: " + response.status());
-    System.out.println("Response Body: " + response.text());
+    if (!response.ok()) {
+      throw new RuntimeException("Falha ao gerar token: " + response.status() + " - " + response.text());
+    }
 
     JsonObject responseBody = gson.fromJson(response.text(), JsonObject.class);
     String generatedToken = responseBody.get("token").getAsString();
-    System.out.println("✓ Token gerado com sucesso!");
-    System.out.println("===================================================\n");
+    System.out.println("🔑 [API] Token de admin gerado com sucesso.");
     return generatedToken;
   }
 
+  @Step("API: Obtendo ID da produtora '{companyName}' (/companies)")
   private String getCompanies(String companyName) {
-    System.out.println("\n--- Buscando Company ID ---");
-    System.out.println("GET /companies?name=" + companyName);
-
     APIResponse response = request.get("/companies",
         RequestOptions.create()
             .setHeader("Authorization", "Bearer " + token)
             .setQueryParam("name", companyName)
     );
 
-    System.out.println("Response Status: " + response.status());
-    System.out.println("Response Body: " + response.text());
-
     Gson gson = new Gson();
     JsonObject responseBody = gson.fromJson(response.text(), JsonObject.class);
-
-    // Pega o array 'data' e extrai o primeiro item [0].id
     JsonArray data = responseBody.getAsJsonArray("data");
 
     if (data != null && !data.isEmpty()) {
       JsonObject firstCompany = data.get(0).getAsJsonObject();
-      String companyId = firstCompany.get("id").getAsString();
-      System.out.println("Company ID encontrado: " + companyId);
-      return companyId;
+      return firstCompany.get("id").getAsString();
     }
 
     throw new RuntimeException("Company não encontrada: " + companyName);
   }
-
 
   public void dispose() {
     if (request != null) {
@@ -158,4 +149,3 @@ public class MoviesApi {
     }
   }
 }
-

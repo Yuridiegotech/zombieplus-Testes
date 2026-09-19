@@ -1,13 +1,22 @@
 package tests;
 
+import io.qameta.allure.Epic;
+import io.qameta.allure.Feature;
+import io.qameta.allure.Severity;
+import io.qameta.allure.SeverityLevel;
+import io.qameta.allure.Story;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import support.BaseTest;
 
+@Epic("Autenticação")
+@Feature("Login de Administrador")
 public class LoginTest extends BaseTest {
 
   @Test
-  @DisplayName("Deve Logar como Admin")
+  @Story("Login com credenciais válidas")
+  @Severity(SeverityLevel.BLOCKER)
+  @DisplayName("Deve logar como Admin com sucesso")
   void PageLoginAdmin() {
     login.navigate();
     login.submit("admin@zombieplus.com", "pwd123");
@@ -15,7 +24,9 @@ public class LoginTest extends BaseTest {
   }
 
   @Test
-  @DisplayName("Não Deve Logar com senha incorreta")
+  @Story("Validação de credenciais incorretas")
+  @Severity(SeverityLevel.CRITICAL)
+  @DisplayName("Não deve logar com senha incorreta")
   void PageLoginAdminIncorrectPassword() {
     login.navigate();
     login.submit("admin@zombieplus.com", "errada");
@@ -24,7 +35,9 @@ public class LoginTest extends BaseTest {
   }
 
   @Test
-  @DisplayName("Não Deve Logar quando o email é inválido")
+  @Story("Validação de formato de email")
+  @Severity(SeverityLevel.NORMAL)
+  @DisplayName("Não deve logar quando o email é inválido")
   void PageLoginAdminEmailWithIncorrect() {
     login.navigate();
     login.submit("yuridiegotech.vercel", "abc123");
@@ -32,7 +45,9 @@ public class LoginTest extends BaseTest {
   }
 
   @Test
-  @DisplayName("Não Deve Logar quando o email nao é preenchido")
+  @Story("Validação de campos obrigatórios")
+  @Severity(SeverityLevel.NORMAL)
+  @DisplayName("Não deve logar quando o email não é preenchido")
   void PageLoginAdminEmailNull() {
     login.navigate();
     login.submit("", "errada");
@@ -40,7 +55,9 @@ public class LoginTest extends BaseTest {
   }
 
   @Test
-  @DisplayName("Não Deve Logar quando o Senha nao é preenchido")
+  @Story("Validação de campos obrigatórios")
+  @Severity(SeverityLevel.NORMAL)
+  @DisplayName("Não deve logar quando a senha não é preenchida")
   void PageLoginAdminPasswordNull() {
     login.navigate();
     login.submit("Teste@teste.com", "");
@@ -48,7 +65,9 @@ public class LoginTest extends BaseTest {
   }
 
   @Test
-  @DisplayName("Não Deve Logar quando o Senha e Email nao é preenchido")
+  @Story("Validação de campos obrigatórios")
+  @Severity(SeverityLevel.NORMAL)
+  @DisplayName("Não deve logar quando senha e email não são preenchidos")
   void PageLoginAdminPasswordAndEmailWithNull() {
     login.navigate();
     login.submit("", "");

@@ -1,30 +1,39 @@
 package tests;
 
+import io.qameta.allure.Epic;
+import io.qameta.allure.Feature;
+import io.qameta.allure.Severity;
+import io.qameta.allure.SeverityLevel;
+import io.qameta.allure.Story;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import support.BaseTest;
 import support.database;
 import support.fixtures.tvshows.TvShowsData;
 
+@Epic("Gestão de Catálogo")
+@Feature("Administração de Séries de TV")
 public class TvShowsTest extends BaseTest {
 
   @Test
-  @DisplayName("Deve poder cadastrar uma nova série")
+  @Story("Cadastro de séries")
+  @Severity(SeverityLevel.CRITICAL)
+  @DisplayName("Deve poder cadastrar uma nova série com sucesso")
   void pageTvShowsNewRecord() {
     var tvShow = TvShowsData.get("create");
 
     // Deleta a série do banco de dados caso já exista
     String tvShowTitle = TvShowsData.getStringValue(tvShow, "title");
-    database.executeSQL(String.format("DELETE FROM tvshows WHERE title = '" + tvShowTitle + "'"));
+    database.executeSQL(String.format("DELETE FROM tvshows WHERE title = '%s'", tvShowTitle));
 
-    //devo estar logado
+    // Devo estar logado
     login.Login("admin@zombieplus.com", "pwd123", "Admin");
 
     tvShows.goToPageTvShow();
 
     page.waitForTimeout(5000);
 
-    //cadastrar nova série
+    // Cadastrar nova série
     tvShows.createNewTvShow(
         TvShowsData.getStringValue(tvShow, "title"),
         TvShowsData.getStringValue(tvShow, "overview"),
@@ -38,23 +47,25 @@ public class TvShowsTest extends BaseTest {
   }
 
   @Test
+  @Story("Cadastro de séries")
+  @Severity(SeverityLevel.NORMAL)
   @DisplayName("Não deve permitir cadastrar série duplicada")
   void pageTvShowsNewRecordDuplicate() {
     var tvShow = TvShowsData.get("duplicate");
 
     // Deleta a série do banco de dados caso já exista
     String tvShowTitle = TvShowsData.getStringValue(tvShow, "title");
-    database.executeSQL(String.format("DELETE FROM tvshows WHERE title = '" + tvShowTitle + "'"));
+    database.executeSQL(String.format("DELETE FROM tvshows WHERE title = '%s'", tvShowTitle));
 
     // Insere a série via API (massa de teste)
     tvShowsApi.createTvShow(tvShow);
 
-    //devo estar logado
+    // Devo estar logado
     login.Login("admin@zombieplus.com", "pwd123", "Admin");
 
     tvShows.goToPageTvShow();
 
-    //cadastrar nova série
+    // Cadastrar nova série duplicada
     tvShows.createNewTvShow(
         TvShowsData.getStringValue(tvShow, "title"),
         TvShowsData.getStringValue(tvShow, "overview"),
@@ -71,13 +82,14 @@ public class TvShowsTest extends BaseTest {
   }
 
   @Test
-  @DisplayName("Não deve cadastrar quando os campos obrigatórios não forem preenchidos")
+  @Story("Validação de formulário de cadastro")
+  @Severity(SeverityLevel.NORMAL)
+  @DisplayName("Não deve cadastrar série quando os campos obrigatórios não forem preenchidos")
   void pageTvShowsRecordWithFieldNull() {
-
-    //devo estar logado
+    // Devo estar logado
     login.Login("admin@zombieplus.com", "pwd123", "Admin");
 
-    //acessar a página de séries
+    // Acessar a página de séries
     tvShows.goToPageTvShow();
 
     tvShows.goForm();
@@ -91,31 +103,35 @@ public class TvShowsTest extends BaseTest {
   }
 
   @Test
-  @DisplayName("Deve permitir excluir uma série")
+  @Story("Exclusão de séries")
+  @Severity(SeverityLevel.CRITICAL)
+  @DisplayName("Deve permitir excluir uma série existente com sucesso")
   void pageTvShowsDeleteTvShow() {
     var tvShow = TvShowsData.get("delete");
 
     // Deleta a série do banco de dados caso já exista
     String tvShowTitle = TvShowsData.getStringValue(tvShow, "title");
-    database.executeSQL(String.format("DELETE FROM tvshows WHERE title = '" + tvShowTitle + "'"));
+    database.executeSQL(String.format("DELETE FROM tvshows WHERE title = '%s'", tvShowTitle));
 
     // Insere a série via API (massa de teste)
     tvShowsApi.createTvShow(tvShow);
 
-    //devo estar logado
+    // Devo estar logado
     login.Login("admin@zombieplus.com", "pwd123", "Admin");
 
-    //acessar a página de séries
+    // Acessar a página de séries
     tvShows.goToPageTvShow();
 
-    //excluir a série
+    // Excluir a série
     tvShows.deleteTvShow(tvShowTitle);
 
     components.waitForPopupMessage("Série removida com sucesso.");
   }
 
   @Test
-  @DisplayName("Deve realizar busca pelo termo zombie")
+  @Story("Busca de séries")
+  @Severity(SeverityLevel.NORMAL)
+  @DisplayName("Deve realizar busca de séries pelo termo 'zombie'")
   void pageTvShowsSearchTvShow() {
     var tvShow = TvShowsData.get("search");
 
@@ -125,7 +141,7 @@ public class TvShowsTest extends BaseTest {
     // Deleta todas as séries do array do banco de dados
     for (var tv : tvShowsList) {
       String tvShowTitle = TvShowsData.getStringValue(tv, "title");
-      database.executeSQL(String.format("DELETE FROM tvshows WHERE title = '" + tvShowTitle + "'"));
+      database.executeSQL(String.format("DELETE FROM tvshows WHERE title = '%s'", tvShowTitle));
     }
 
     // Cria todas as séries via API
@@ -133,12 +149,13 @@ public class TvShowsTest extends BaseTest {
       tvShowsApi.createTvShow(tv);
     }
 
-    //devo estar logado
+    // Devo estar logado
     login.Login("admin@zombieplus.com", "pwd123", "Admin");
 
-    //acessar a página de séries
+    // Acessar a página de séries
     tvShows.goToPageTvShow();
-    //realizar a busca
+
+    // Realizar a busca
     tvShows.searchTvShow(TvShowsData.getStringValue(tvShow, "input"));
 
     // Valida que todos os títulos das séries criadas estão nos resultados

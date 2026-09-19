@@ -5,7 +5,10 @@ import com.microsoft.playwright.Locator.FilterOptions;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.AriaRole;
 import com.microsoft.playwright.options.LoadState;
+import io.qameta.allure.Step;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TvShows {
 
@@ -15,48 +18,66 @@ public class TvShows {
     this.page = page;
   }
 
+  @Step("Navegando para a página de Séries de TV")
+  public void goToPageTvShow() {
+    System.out.println("📺 [UI] Acessando listagem de séries (/tvshows)");
+    page.locator("a[href$='/tvshows']").click();
+    page.waitForURL("**/admin/tvshows");
+    page.waitForLoadState(LoadState.NETWORKIDLE);
+  }
+
+  @Step("Navegando para o formulário de cadastro de série")
   public void goForm() {
+    System.out.println("➕ [UI] Clicando em cadastrar nova série");
     page.locator("a[href=\"/admin/tvshows/register\"]").click();
   }
 
+  @Step("Submetendo o formulário de cadastro de série")
   public void submitForm() {
+    System.out.println("💾 [UI] Clicando no botão 'Cadastrar'");
     page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Cadastrar")).click();
   }
 
+  @Step("Validando mensagens de alerta nos campos de série: {expectedTexts}")
   public void assertAlertsTexts(String... expectedTexts) {
     Locator alerts = page.locator(".alert");
     int count = alerts.count();
-    assert count == expectedTexts.length : "Quantidade de alertas diferente do esperado";
+    System.out.println("🔍 [UI] Validando alertas. Esperados: " + expectedTexts.length + ", Encontrados: " + count);
+    assert count == expectedTexts.length : "Quantidade de alertas diferente do esperado. Esperado: " + expectedTexts.length + ", Obtido: " + count;
     for (int i = 0; i < count; i++) {
       alerts.nth(i).waitFor();
-      String actual = alerts.nth(i).textContent();
+      String actual = alerts.nth(i).textContent().trim();
+      System.out.println("   - Alerta [" + i + "]: " + actual + " (Esperado: '" + expectedTexts[i] + "')");
       assert actual.contains(expectedTexts[i]) :
-          "Esperado: " + expectedTexts[i] + ", Obtido: " + actual;
+          "Esperado conter: '" + expectedTexts[i] + "', mas foi obtido: '" + actual + "'";
     }
   }
 
+  @Step("Cadastrando série '{title}' (Temporadas: {season}, Ano: {releaseYear}, Produtora: {companyName}, Destaque: {featured})")
   public void createNewTvShow(String title, String overview, String companyName,
       String releaseYear, String season, String cover, boolean featured) {
 
+    System.out.println("📺 [UI] Preenchendo formulário da série: " + title);
     goForm();
     page.getByLabel("Titulo da série").fill(title);
     page.getByLabel("Sinopse").fill(overview);
 
-    //Seleciona Companhia
+    // Seleciona Companhia
     page.locator("#select_company_id .react-select__indicator").click();
-    page.locator(".react-select__option").filter(new FilterOptions().setHasText(companyName))
-        .click();
+    page.locator(".react-select__option").filter(new FilterOptions().setHasText(companyName)).click();
 
-    //Seleciona Ano de lançamento
+    // Seleciona Ano de lançamento
     page.locator("#select_year .react-select__indicator").click();
-    page.locator(".react-select__option").filter(new FilterOptions().setHasText(releaseYear))
-        .click();
+    page.locator(".react-select__option").filter(new FilterOptions().setHasText(releaseYear)).click();
 
-    //Preenche temporadas
+    // Preenche temporadas
     page.getByLabel("Temporadas").fill(season);
 
-    page.locator("input[name=cover]")
-        .setInputFiles(Paths.get("src/test/java/support/fixtures/" + cover));
+    if (cover != null && !cover.isEmpty()) {
+      String cleanCover = cover.startsWith("/") ? cover.substring(1) : cover;
+      page.locator("input[name=cover]")
+          .setInputFiles(Paths.get("src/test/java/support/fixtures/" + cleanCover));
+    }
 
     if (featured) {
       page.locator(".featured .react-switch").click();
@@ -65,7 +86,9 @@ public class TvShows {
     submitForm();
   }
 
+  @Step("Excluindo a série: '{tvShowTitle}'")
   public void deleteTvShow(String tvShowTitle) {
+    System.out.println("🗑️ [UI] Excluindo série: " + tvShowTitle);
     page.getByRole(AriaRole.ROW, new Page.GetByRoleOptions().setName(tvShowTitle))
         .getByRole(AriaRole.BUTTON)
         .click();
@@ -73,22 +96,22 @@ public class TvShows {
     page.locator(".confirm-removal").click();
   }
 
+  @Step("Buscando série pelo termo: '{target}'")
   public void searchTvShow(String target) {
+    System.out.println("🔎 [UI] Buscando série com o termo: " + target);
     page.getByPlaceholder("Busque pelo nome").fill(target);
     page.click(".actions button");
   }
 
-  public void assertSearchResults(java.util.List<String> expectedTitles) {
-    // Aguarda a primeira linha aparecer
+  @Step("Validando resultados da busca por séries. Esperados: {expectedTitles}")
+  public void assertSearchResults(List<String> expectedTitles) {
     page.locator("td.title").first().waitFor();
 
-    // Pega apenas os títulos, excluindo o texto do <small>
     Locator titleCells = page.locator("td.title");
-    java.util.List<String> foundTitles = new java.util.ArrayList<>();
+    List<String> foundTitles = new ArrayList<>();
 
     int count = titleCells.count();
     for (int i = 0; i < count; i++) {
-      // Usa evaluate para pegar apenas os childNodes de texto, ignorando o <small>
       String title = (String) titleCells.nth(i).evaluate(
           "element => Array.from(element.childNodes)" +
               ".filter(node => node.nodeType === Node.TEXT_NODE)" +
@@ -99,30 +122,18 @@ public class TvShows {
     }
 
     System.out.println("===================================================");
-    System.out.println("VALIDANDO RESULTADOS DA BUSCA");
-    System.out.println("===================================================");
+    System.out.println("VALIDANDO RESULTADOS DA BUSCA DE SÉRIES");
     System.out.println("Títulos localizados (td.title): " + foundTitles);
     System.out.println("Títulos esperados (tvshow.title): " + expectedTitles);
-    System.out.println("===================================================\n");
+    System.out.println("===================================================");
 
-    // Valida que cada título esperado está contido na lista de títulos encontrados
     for (String expectedTitle : expectedTitles) {
-      System.out.println("✓ Validando: " + expectedTitle);
+      System.out.println("  ✓ Validando presença da série: " + expectedTitle);
       assert foundTitles.contains(expectedTitle) :
-          "TV Show não encontrado nos resultados da busca: " + expectedTitle +
+          "Série não encontrada nos resultados da busca: " + expectedTitle +
               "\nTítulos encontrados: " + foundTitles;
     }
 
-    System.out.println(
-        "\n✓ Todos os " + expectedTitles.size() + " TV Shows foram encontrados na busca\n");
+    System.out.println("✅ Todos os " + expectedTitles.size() + " TV Shows foram encontrados na busca.\n");
   }
-
-  public void goToPageTvShow() {
-    page.locator("a[href$='/tvshows']").click();
-    page.waitForURL("**/admin/tvshows");
-    page.waitForLoadState(LoadState.NETWORKIDLE);
-  }
-
-
 }
-
